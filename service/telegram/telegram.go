@@ -45,9 +45,10 @@ func (t *Telegram) Client() *tgbotapi.BotAPI {
 
 // GetChatId returns the chat id of the given username if the user sends a message to the bot from call until timeout. Else it returns (-1,error)
 func (t *Telegram) GetChatId(username string, timeout time.Duration) (int, error) {
-
+	t.client.GetUpdatesChan(tgbotapi.UpdateConfig{})
 	interruptSignal := time.After(timeout)
 	ticker := time.NewTicker(time.Second * 2)
+	offset:=0
 	// Keep trying until we're timed out or get a result/error
 	for {
 		select {
@@ -58,11 +59,14 @@ func (t *Telegram) GetChatId(username string, timeout time.Duration) (int, error
 		case <-ticker.C:
 			updates, err := t.client.GetUpdates(tgbotapi.UpdateConfig{
 				Timeout: int(time.Millisecond * 500),
+				Limit: 100,
+				Offset: offset,
 			})
 			if err != nil {
 				continue
 			}
 			for _, update := range updates {
+				offset=update.UpdateID+1
 				if update.Message != nil && update.Message.From != nil {
 					if update.Message.From.UserName == username {
 						return update.Message.From.ID, nil
