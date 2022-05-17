@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/pkg/errors"
@@ -36,6 +37,40 @@ func New(apiToken string) (*Telegram, error) {
 // a given message to all those chats.
 func (t *Telegram) AddReceivers(chatIDs ...int64) {
 	t.chatIDs = append(t.chatIDs, chatIDs...)
+}
+
+func (t *Telegram) Client() *tgbotapi.BotAPI {
+	return t.client
+}
+
+// GetChatId returns the chat id of the given username if the user sends a message to the bot from call until timeout. Else it returns (-1,error)
+func (t *Telegram) GetChatId(username string, timeout time.Duration) (int, error) {
+
+	interruptSignal := time.After(timeout)
+	ticker := time.NewTicker(time.Second * 2)
+	// Keep trying until we're timed out or get a result/error
+	for {
+		select {
+		// Got a timeout! fail with a timeout error
+		case <-interruptSignal:
+			return -1, errors.New("timed out")
+		// Got a tick, we should check on checkSomething()
+		case <-ticker.C:
+			updates, err := t.client.GetUpdates(tgbotapi.UpdateConfig{
+				Timeout: int(time.Millisecond * 500),
+			})
+			if err != nil {
+				continue
+			}
+			for _, update := range updates {
+				if update.Message != nil && update.Message.From != nil {
+					if update.Message.From.UserName == username {
+						return update.Message.From.ID, nil
+					}
+				}
+			}
+		}
+	}
 }
 
 // Send takes a message subject and a message body and sends them to all previously set chats. Message body supports
