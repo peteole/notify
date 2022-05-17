@@ -1,4 +1,4 @@
-module github.com/nikoksr/notify
+module github.com/peteole/notify
 
 go 1.17
 
